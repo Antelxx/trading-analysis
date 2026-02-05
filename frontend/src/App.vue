@@ -25,7 +25,6 @@
 
     <section class="layout">
       <section class="panel chart-panel">
-        <div class="chart-title">均线偏离 (7/25/60)</div>
         <div class="chart-area">
           <KlineChart
             v-if="(kline?.candles || []).length > 0"
@@ -42,8 +41,11 @@
       <aside class="stack right-panel">
         <StatCard title="结构分析" :items="maItems" />
         <StatCard title="关键指标" :items="volumeItems" />
-        <AiCard :analysis="aiAnalysis?.analysis" />
       </aside>
+    </section>
+
+    <section class="panel ai-panel">
+      <AiCard title="AI分析" :analysis="aiAnalysis?.analysis" />
     </section>
   </div>
 </template>
@@ -64,7 +66,7 @@ const indicators = ref(null);
 const aiAnalysis = ref(null);
 
 const marketMap = {
-  nasdaq: { symbol: "SPY", asset: "stock", label: "标普 500 (SPY)", supportsIntraday: true },
+  nasdaq: { symbol: "NASDAQ_COMPOSITE", asset: "stock", label: "纳斯达克综合指数", supportsIntraday: true },
   gold: { symbol: "XAUUSD", asset: "gold", label: "黄金", supportsIntraday: true },
   shanghai: { symbol: "ASHR", asset: "stock", label: "上证 (ASHR ETF)", supportsIntraday: true }
 };
@@ -101,6 +103,14 @@ const maItems = computed(() => {
 
 const volumeItems = computed(() => {
   const latest = indicators.value?.latest;
+  const volumes = indicators.value?.volume || [];
+  const hasVolume = volumes.some((v) => v > 0);
+  if (!hasVolume) {
+    return [
+      { label: "成交量趋势", value: "--" },
+      { label: "量能配合", value: "--" }
+    ];
+  }
   const volumeLabel =
     latest?.volumeTrend === "increasing"
       ? "放量"

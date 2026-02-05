@@ -54,6 +54,9 @@ function calcIndicators(candles) {
   })();
 
   const volumeTrend = (() => {
+    if (volumes.length === 0) return "unknown";
+    const allZero = volumes.every((v) => v === 0);
+    if (allZero) return "unknown";
     const recent = volumes.slice(-7);
     const prev = volumes.slice(-14, -7);
     if (recent.length < 7 || prev.length < 7) return "unknown";

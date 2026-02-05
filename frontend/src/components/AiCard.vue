@@ -1,6 +1,6 @@
 <template>
   <div class="panel">
-    <h3>结构分析</h3>
+    <h3>{{ title }}</h3>
     <div class="ai-section">
       <div>
         <div class="label">当前结构</div>
@@ -25,7 +25,7 @@
         <div>{{ analysis?.rationale || "-" }}</div>
       </div>
       <div>
-        <div class="label">Action Hint</div>
+        <div class="label">行动提示</div>
         <div class="badge risk">{{ analysis?.action_hint || "-" }}</div>
       </div>
     </div>
@@ -34,6 +34,7 @@
 
 <script setup>
 defineProps({
+  title: { type: String, default: "AI分析" },
   analysis: { type: Object, default: null }
 });
 </script>

@@ -113,6 +113,18 @@ button.primary {
   align-content: start;
 }
 
+.ai-panel {
+  margin: 0 24px 24px;
+}
+
+.ai-panel .ai-section {
+  font-size: 14px;
+}
+
+.ai-panel .ai-section .label {
+  font-size: 12px;
+}
+
 .kv {
   display: flex;
   justify-content: space-between;

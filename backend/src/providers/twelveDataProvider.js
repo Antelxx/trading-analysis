@@ -16,12 +16,12 @@ function mapValuesToCandles(values) {
   return normalized.sort((a, b) => new Date(a.t) - new Date(b.t));
 }
 
-async function fetchGoldCandles({ interval, apiKey, outputsize = 300 }) {
+async function fetchTimeSeries({ symbol, interval, apiKey, outputsize = 300 }) {
   if (!apiKey) throw new Error("TWELVEDATA_API_KEY missing");
 
   const { data } = await axios.get(`${BASE_URL}/time_series`, {
     params: {
-      symbol: "XAU/USD",
+      symbol,
       interval,
       outputsize,
       apikey: apiKey
@@ -36,4 +36,16 @@ async function fetchGoldCandles({ interval, apiKey, outputsize = 300 }) {
   return mapValuesToCandles(data?.values);
 }
 
-module.exports = { fetchGoldCandles };
+async function searchSymbol({ query, apiKey }) {
+  if (!apiKey) throw new Error("TWELVEDATA_API_KEY missing");
+  const { data } = await axios.get(`${BASE_URL}/symbol_search`, {
+    params: { symbol: query, apikey: apiKey },
+    timeout: 20000
+  });
+  if (data && data.status === "error") {
+    throw new Error(data.message || "twelvedata error");
+  }
+  return data?.data || [];
+}
+
+module.exports = { fetchTimeSeries, searchSymbol };
