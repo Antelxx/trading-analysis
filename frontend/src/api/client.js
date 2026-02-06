@@ -1,6 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/api";
+﻿const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/api";
 
-async function request(path) {
+export async function request(path) {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -8,5 +8,3 @@ async function request(path) {
   }
   return res.json();
 }
-
-export { request };

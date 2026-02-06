@@ -1,5 +1,5 @@
-{
-  "name": "trading-analysis-frontend",
+﻿{
+  "name": "trading-analysis-frontend-react",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,10 +10,11 @@
   },
   "dependencies": {
     "lightweight-charts": "^4.2.0",
-    "vue": "^3.4.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.0",
+    "@vitejs/plugin-react": "^4.2.1",
     "vite": "^5.0.0"
   }
 }
