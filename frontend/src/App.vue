@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="app">
-    <header class="toolbar">
-      <div class="title">行情结构分析</div>
+    <header class="topbar">
+      <div class="brand">AITradingAnalysis</div>
       <div class="controls">
         <label class="select-group">
           <span>品种</span>
@@ -19,47 +19,55 @@
             <option value="1day">1天</option>
           </select>
         </label>
-        <button class="primary" :disabled="loading" @click="refresh">
-          生成分析
-          <span v-if="loading" class="spinner" aria-label="loading"></span>
+        <button v-if="!loading" class="primary" @click="refresh">生成AI分析</button>
+        <button v-else class="primary loading-btn" disabled>
+          AI分析中
+          <span class="spinner" aria-label="loading"></span>
         </button>
       </div>
     </header>
 
-    <section class="layout">
-      <section class="panel chart-panel">
-        <div class="chart-area">
-          <KlineChart
-            v-if="(kline?.candles || []).length > 0"
-            :candles="kline?.candles || []"
-            :ma7="indicators?.ma7 || []"
-            :ma25="indicators?.ma25 || []"
-            :ma60="indicators?.ma60 || []"
-            :interval="interval"
-          />
-          <div v-else class="empty">暂无数据，请检查行情 API Key 或选择可用市场。</div>
-        </div>
-        <div class="footer">数据仅用于结构分析，不构成投资建议。</div>
+    <main class="main">
+      <section class="main-grid">
+        <section class="chart-wrap">
+          <div class="chart-area">
+            <KlineChart
+              v-if="(kline?.candles || []).length > 0"
+              :candles="kline?.candles || []"
+              :ma7="indicators?.ma7 || []"
+              :ma25="indicators?.ma25 || []"
+              :ma60="indicators?.ma60 || []"
+              :interval="interval"
+            />
+            <div v-else class="empty">暂无数据，请检查行情 API Key 或选择可用市场。</div>
+          </div>
+          <div class="footnote">数据仅用于结构分析，不构成投资建议。</div>
+        </section>
+
+        <aside class="summary">
+          <div class="summary-title">结构结论摘要</div>
+          <div class="summary-item">趋势：{{ summary.trend }}</div>
+          <div class="summary-item">均线结构：{{ summary.structure }}</div>
+          <div class="summary-item">关键区间：{{ summary.zone }}</div>
+          <div class="summary-item">策略：{{ strategyText }}</div>
+          <div class="summary-item">风险：{{ riskText }}</div>
+          <div class="summary-item">关键价位：{{ keyLevelText }}</div>
+        </aside>
       </section>
 
-      <aside class="stack right-panel">
-        <StatCard title="结构分析" :items="maItems" />
-        <StatCard title="关键指标" :items="volumeItems" />
-      </aside>
-    </section>
+      <section class="interpretation">
+        <div class="section-title">AI 市场解读</div>
+        <p class="interpretation-text">{{ aiParagraph }}</p>
+      </section>
+    </main>
 
-    <section class="panel ai-panel">
-      <AiCard title="AI分析" :analysis="aiAnalysis?.analysis" />
-    </section>
     <div v-if="toast" class="toast">{{ toast }}</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import KlineChart from "./components/KlineChart.vue";
-import StatCard from "./components/StatCard.vue";
-import AiCard from "./components/AiCard.vue";
 import { fetchKline, fetchIndicators } from "./api/market";
 import { fetchAi } from "./api/analysis";
 
@@ -91,10 +99,15 @@ async function refresh() {
   const { symbol, asset } = currentMarket.value;
   try {
     loading.value = true;
-    kline.value = await fetchKline({ symbol, asset, interval: interval.value });
-    const indicatorRes = await fetchIndicators({ symbol, asset, interval: interval.value });
+    const [klineRes, indicatorRes, aiRes] = await Promise.all([
+      fetchKline({ symbol, asset, interval: interval.value }),
+      fetchIndicators({ symbol, asset, interval: interval.value }),
+      fetchAi({ symbol, asset, interval: interval.value })
+    ]);
+    // Update UI only after AI returns to keep chart + analysis in sync
+    kline.value = klineRes;
     indicators.value = indicatorRes.indicators;
-    aiAnalysis.value = await fetchAi({ symbol, asset, interval: interval.value });
+    aiAnalysis.value = aiRes;
     toast.value = "分析已生成";
     setTimeout(() => {
       toast.value = "";
@@ -104,40 +117,50 @@ async function refresh() {
   }
 }
 
-const maItems = computed(() => {
+const summary = computed(() => {
   const latest = indicators.value?.latest;
-  const trendLabel = latest?.trendDirection === "up" ? "上行" : latest?.trendDirection === "down" ? "下行" : "震荡";
-  const structureLabel = latest?.maAlignment === "bullish" ? "多头" : latest?.maAlignment === "bearish" ? "空头" : "混合";
-  return [
-    { label: "趋势方向", value: trendLabel || "-", badgeClass: latest?.trendDirection === "up" ? "up" : "down" },
-    { label: "均线排列", value: structureLabel || "-", badgeClass: "badge" },
-    { label: "MA7 偏离", value: latest?.priceDistancePct?.ma7 ?? "-" },
-    { label: "MA25 偏离", value: latest?.priceDistancePct?.ma25 ?? "-" },
-    { label: "MA60 偏离", value: latest?.priceDistancePct?.ma60 ?? "-" }
-  ];
+  if (!latest) return { trend: "--", structure: "--", zone: "--" };
+  const trend = latest.trendDirection === "up" ? "偏多" : latest.trendDirection === "down" ? "偏空" : "震荡";
+  const structure = latest.maAlignment === "bullish" ? "多头排列" : latest.maAlignment === "bearish" ? "空头排列" : "混合";
+  const close = latest.close;
+  const ma60 = indicators.value?.ma60?.slice(-1)?.[0];
+  const zone = close && ma60 ? (close > ma60 ? "MA60 支撑区" : "MA60 压力区") : "--";
+  return { trend, structure, zone };
 });
 
-const volumeItems = computed(() => {
-  const latest = indicators.value?.latest;
-  const volumes = indicators.value?.volume || [];
-  const hasVolume = volumes.some((v) => v > 0);
-  if (!hasVolume) {
-    return [
-      { label: "成交量趋势", value: "--" },
-      { label: "量能配合", value: "--" }
-    ];
-  }
-  const volumeLabel =
-    latest?.volumeTrend === "increasing"
-      ? "放量"
-      : latest?.volumeTrend === "decreasing"
-      ? "缩量"
-      : "平稳";
-  return [
-    { label: "成交量趋势", value: volumeLabel || "-" },
-    { label: "量能配合", value: latest?.volumeTrend === "increasing" ? "是" : "否" }
-  ];
+const aiParagraph = computed(() => {
+  const a = aiAnalysis.value?.analysis;
+  if (!a) return "尚未生成 AI 解读。";
+  const parts = [];
+  if (a.overall) parts.push(`当前结构为${a.overall === "trend" ? "趋势" : a.overall === "range" ? "震荡" : "结构破坏"}。`);
+  if (a.forces) parts.push(typeof a.forces === "string" ? a.forces : "多空力量存在分歧。" );
+  // if (a.risk) parts.push(`主要风险在于：${a.risk}。`);
+  if (a.rationale) parts.push(a.rationale);
+  return parts.join(" ");
 });
 
-onMounted(refresh);
+const strategyText = computed(() => {
+  const hint = aiAnalysis.value?.analysis?.action_hint;
+  if (!aiAnalysis.value) return "--";
+  if (hint === "wait") return "等待确认，避免在结构未明确时介入。";
+  if (hint === "watch") return "保持观察，等待量价关系进一步确认。";
+  if (hint === "cautious") return "谨慎参与，控制节奏与仓位。";
+  return "以观察为主，等待更明确结构信号。";
+});
+
+const riskText = computed(() => {
+  const r = aiAnalysis.value?.analysis?.risk;
+  if (!aiAnalysis.value) return "--";
+  if (!r) return "--";
+  if (["low", "medium", "high"].includes(r)) return `风险等级：${r === "low" ? "低" : r === "medium" ? "中" : "高"}。`;
+  return r;
+});
+
+const keyLevelText = computed(() => {
+  if (!indicators.value) return "--";
+  const ma25 = indicators.value?.ma25?.slice(-1)?.[0];
+  const ma60 = indicators.value?.ma60?.slice(-1)?.[0];
+  if (!ma25 || !ma60) return "--";
+  return `关注 MA25/MA60 区域（${Number(ma25).toFixed(2)} / ${Number(ma60).toFixed(2)}）。`;
+});
 </script>

@@ -1,3 +1,7 @@
+﻿const axios = require("axios");
+const http = require("http");
+const https = require("https");
+
 function buildStubAnalysis({ rules }) {
   const overall =
     rules.trend === "up" || rules.trend === "down" ? "trend" : "range";
@@ -16,8 +20,6 @@ function buildStubAnalysis({ rules }) {
   };
 }
 
-const axios = require("axios");
-
 const GEMINI_BASE_URL =
   process.env.AI_STUDIO_BASE_URL ||
   "https://generativelanguage.googleapis.com/v1beta";
@@ -28,13 +30,7 @@ function buildGeminiPrompt({ input }) {
       {
         parts: [
           {
-            text:
-              "你是资深的行情结构分析助手。必须遵守：不预测涨跌，不给买卖点或交易建议。" +
-              "仅基于给定数据输出结构化判断，不引入外部指标或信息。" +
-              "只输出 JSON，且必须包含字段：overall, forces, timeframes, risk, rationale, action_hint。" +
-              "action_hint 只能是 wait/watch/cautious。\n" +
-              "输入数据：\n" +
-              JSON.stringify(input)
+            text: buildSystemPrompt() + "\n输入数据：\n" + JSON.stringify(input)
           }
         ]
       }
@@ -44,6 +40,27 @@ function buildGeminiPrompt({ input }) {
       maxOutputTokens: Number(process.env.AI_STUDIO_MAX_TOKENS || 600)
     }
   };
+}
+
+function buildSystemPrompt() {
+  const mode = (process.env.AI_MODE || "public").toLowerCase();
+  const base =
+    "你是一个基于‘多周期均线(MA)与量价关系’的专业分析助手。请严格执行以下逻辑：\n" +
+    "1. 核心逻辑：以 4h 级别定趋势，1h 级别找信号。若价格在 MA60 下方，所有向上交叉均视为‘反弹’而非‘反转’。\n" +
+    "2. 验证标准：观察价格突破均线时成交量是否同步放大，若缩量则在 risk 中提示‘诱多风险’。\n" +
+    "3. 字段要求：只输出 JSON，严禁预测未来涨跌，严禁给出买卖建议。必须包含字段：overall, forces, timeframes, risk, rationale, action_hint。\n" +
+    "4. 约束：action_hint 只能是 wait/watch/cautious。\n" +
+    "5. 语言：输出内容必须使用中文，不允许出现英文单词（MA7/MA25/MA60 等专业缩写除外）。\n";
+  if (mode === "personal") {
+    return (
+      base +
+      "表达可以更直接明确，但仍只做结构/趋势/风险解读，不得给出预测与交易建议。"
+    );
+  }
+  return (
+    base +
+    "语气克制，强调不确定性与风险。"
+  );
 }
 
 function createAiProvider() {
@@ -78,7 +95,6 @@ function createAiProvider() {
           });
           data = res.data;
         } catch (err) {
-          // One retry for transient timeouts
           if (err.code === "ECONNABORTED") {
             const res = await axios.post(url, buildGeminiPrompt({ input }), {
               headers: {
@@ -117,40 +133,53 @@ function createAiProvider() {
         const baseUrl = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
         const model = process.env.DEEPSEEK_MODEL || "deepseek-chat";
         const timeoutMs = Number(process.env.AI_STUDIO_TIMEOUT_MS || 45000);
+        const maxTokens = Number(process.env.AI_STUDIO_MAX_TOKENS || 600);
 
-        const { data } = await axios.post(
-          `${baseUrl}/chat/completions`,
-          {
-            model,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "你是资深的行情结构分析助手。必须遵守：不预测涨跌，不给买卖点或交易建议。" +
-                  "仅基于给定数据输出结构化判断，不引入外部指标或信息。" +
-                  "只输出 JSON，且必须包含字段：overall, forces, timeframes, risk, rationale, action_hint。" +
-                  "action_hint 只能是 wait/watch/cautious。"
-              },
-              { role: "user", content: JSON.stringify(input) }
-            ],
-            temperature: 0.2,
-            max_tokens: Number(process.env.AI_STUDIO_MAX_TOKENS || 600)
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`
+        const payload = {
+          model,
+          messages: [
+            {
+              role: "system",
+              content: buildSystemPrompt()
             },
-            timeout: timeoutMs
+            { role: "user", content: JSON.stringify(input) }
+          ],
+          temperature: 0.2,
+          max_tokens: maxTokens
+        };
+
+        const requestConfig = {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`
+          },
+          timeout: timeoutMs,
+          httpAgent: new http.Agent({ keepAlive: false }),
+          httpsAgent: new https.Agent({ keepAlive: false })
+        };
+
+        let data;
+        try {
+          const res = await axios.post(`${baseUrl}/chat/completions`, payload, requestConfig);
+          data = res.data;
+        } catch (err) {
+          if (err.code === "ECONNRESET") {
+            const res = await axios.post(`${baseUrl}/chat/completions`, payload, requestConfig);
+            data = res.data;
+          } else {
+            throw err;
           }
-        );
+        }
 
         const text = data?.choices?.[0]?.message?.content || "";
         let parsed;
         try {
           parsed = JSON.parse(text);
         } catch (err) {
-          throw new Error("AI response is not valid JSON");
+          // Try to extract JSON from a mixed response
+          const match = text.match(/\{[\s\S]*\}/);
+          if (!match) throw new Error("AI response is not valid JSON");
+          parsed = JSON.parse(match[0]);
         }
         return parsed;
       }
