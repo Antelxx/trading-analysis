@@ -47,7 +47,7 @@ body {
 
 .controls {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
 }
 
@@ -63,10 +63,11 @@ button {
   background: #ffffff;
   color: var(--text);
   border: 1px solid var(--border);
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-radius: 10px;
   font-size: 14px;
   min-width: 160px;
+  height: 36px;
 }
 
 button.primary {
@@ -74,11 +75,31 @@ button.primary {
   color: #ffffff;
   border-color: #2563eb;
   font-weight: 600;
+  min-width: 120px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+button.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
 }
 
 .layout {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr minmax(260px, 22vw);
   gap: 18px;
   padding: 18px 24px 24px;
   height: calc(100vh - 74px);
@@ -104,7 +125,7 @@ button.primary {
 }
 
 .chart-area {
-  height: 360px;
+  height: clamp(260px, 45vh, 520px);
 }
 
 .stack {
@@ -123,6 +144,38 @@ button.primary {
 
 .ai-panel .ai-section .label {
   font-size: 12px;
+}
+
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.ai-block {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-height: 92px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 16px;
+  right: 20px;
+  background: #111827;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: var(--shadow);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .kv {
@@ -194,5 +247,20 @@ button.primary {
   }
   body {
     overflow: auto;
+  }
+  .controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+  }
+  .select-group {
+    min-width: 0;
+  }
+  button.primary {
+    min-width: 88px;
+  }
+  .ai-panel {
+    margin: 0 16px 24px;
   }
 }

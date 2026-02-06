@@ -29,7 +29,7 @@ function buildGeminiPrompt({ input }) {
         parts: [
           {
             text:
-              "你是行情结构分析助手。必须遵守：不预测涨跌，不给买卖点或交易建议。" +
+              "你是资深的行情结构分析助手。必须遵守：不预测涨跌，不给买卖点或交易建议。" +
               "仅基于给定数据输出结构化判断，不引入外部指标或信息。" +
               "只输出 JSON，且必须包含字段：overall, forces, timeframes, risk, rationale, action_hint。" +
               "action_hint 只能是 wait/watch/cautious。\n" +
@@ -126,7 +126,7 @@ function createAiProvider() {
               {
                 role: "system",
                 content:
-                  "你是行情结构分析助手。必须遵守：不预测涨跌，不给买卖点或交易建议。" +
+                  "你是资深的行情结构分析助手。必须遵守：不预测涨跌，不给买卖点或交易建议。" +
                   "仅基于给定数据输出结构化判断，不引入外部指标或信息。" +
                   "只输出 JSON，且必须包含字段：overall, forces, timeframes, risk, rationale, action_hint。" +
                   "action_hint 只能是 wait/watch/cautious。"
@@ -146,6 +146,66 @@ function createAiProvider() {
         );
 
         const text = data?.choices?.[0]?.message?.content || "";
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          throw new Error("AI response is not valid JSON");
+        }
+        return parsed;
+      }
+    };
+  }
+
+  if (provider === "gemini_proxy") {
+    return {
+      name: "gemini_proxy",
+      analyze: async ({ input }) => {
+        const proxyUrl = process.env.GEMINI_PROXY_URL;
+        if (!proxyUrl) throw new Error("GEMINI_PROXY_URL missing");
+        const timeoutMs = Number(process.env.AI_STUDIO_TIMEOUT_MS || 45000);
+
+        const { data } = await axios.post(
+          proxyUrl,
+          buildGeminiPrompt({ input }),
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: timeoutMs
+          }
+        );
+
+        const text =
+          data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          throw new Error("AI response is not valid JSON");
+        }
+        return parsed;
+      }
+    };
+  }
+
+  if (provider === "gemini_cf") {
+    return {
+      name: "gemini_cf",
+      analyze: async ({ input }) => {
+        const proxyUrl = process.env.CF_GEMINI_PROXY_URL;
+        if (!proxyUrl) throw new Error("CF_GEMINI_PROXY_URL missing");
+        const timeoutMs = Number(process.env.AI_STUDIO_TIMEOUT_MS || 45000);
+
+        const { data } = await axios.post(
+          proxyUrl,
+          buildGeminiPrompt({ input }),
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: timeoutMs
+          }
+        );
+
+        const text =
+          data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
         let parsed;
         try {
           parsed = JSON.parse(text);

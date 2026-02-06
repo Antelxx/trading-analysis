@@ -1,14 +1,14 @@
 ﻿<template>
   <div class="app">
     <header class="toolbar">
-      <div class="title">TradingAnalysis</div>
+      <div class="title">行情结构分析</div>
       <div class="controls">
         <label class="select-group">
           <span>品种</span>
           <select v-model="marketKey">
-            <option value="nasdaq">标普 500 (SPY)</option>
+            <option value="nasdaq">纳指100 ETF（QQQ）</option>
             <option value="gold">黄金 (XAUUSD)</option>
-            <option value="shanghai">上证 (ASHR ETF)</option>
+            <!-- <option value="shanghai">上证指数 (000001)</option> -->
           </select>
         </label>
         <label class="select-group">
@@ -19,7 +19,10 @@
             <option value="1day">1天</option>
           </select>
         </label>
-        <button class="primary" @click="refresh">生成分析</button>
+        <button class="primary" :disabled="loading" @click="refresh">
+          生成分析
+          <span v-if="loading" class="spinner" aria-label="loading"></span>
+        </button>
       </div>
     </header>
 
@@ -32,6 +35,7 @@
             :ma7="indicators?.ma7 || []"
             :ma25="indicators?.ma25 || []"
             :ma60="indicators?.ma60 || []"
+            :interval="interval"
           />
           <div v-else class="empty">暂无数据，请检查行情 API Key 或选择可用市场。</div>
         </div>
@@ -47,6 +51,7 @@
     <section class="panel ai-panel">
       <AiCard title="AI分析" :analysis="aiAnalysis?.analysis" />
     </section>
+    <div v-if="toast" class="toast">{{ toast }}</div>
   </div>
 </template>
 
@@ -64,11 +69,13 @@ const interval = ref("1h");
 const kline = ref(null);
 const indicators = ref(null);
 const aiAnalysis = ref(null);
+const loading = ref(false);
+const toast = ref("");
 
 const marketMap = {
-  nasdaq: { symbol: "NASDAQ_COMPOSITE", asset: "stock", label: "纳斯达克综合指数", supportsIntraday: true },
-  gold: { symbol: "XAUUSD", asset: "gold", label: "黄金", supportsIntraday: true },
-  shanghai: { symbol: "ASHR", asset: "stock", label: "上证 (ASHR ETF)", supportsIntraday: true }
+  nasdaq: { symbol: "QQQ", asset: "stock", label: "纳指100 ETF（QQQ）", supportsIntraday: true },
+  gold: { symbol: "XAUUSD", asset: "gold", label: "黄金", supportsIntraday: true }
+  // shanghai: { symbol: "000001", asset: "stock", label: "上证指数 (000001)", supportsIntraday: false }
 };
 
 const currentMarket = computed(() => marketMap[marketKey.value]);
@@ -82,10 +89,19 @@ watch(marketKey, () => {
 
 async function refresh() {
   const { symbol, asset } = currentMarket.value;
-  kline.value = await fetchKline({ symbol, asset, interval: interval.value });
-  const indicatorRes = await fetchIndicators({ symbol, asset, interval: interval.value });
-  indicators.value = indicatorRes.indicators;
-  aiAnalysis.value = await fetchAi({ symbol, asset, interval: interval.value });
+  try {
+    loading.value = true;
+    kline.value = await fetchKline({ symbol, asset, interval: interval.value });
+    const indicatorRes = await fetchIndicators({ symbol, asset, interval: interval.value });
+    indicators.value = indicatorRes.indicators;
+    aiAnalysis.value = await fetchAi({ symbol, asset, interval: interval.value });
+    toast.value = "分析已生成";
+    setTimeout(() => {
+      toast.value = "";
+    }, 2000);
+  } finally {
+    loading.value = false;
+  }
 }
 
 const maItems = computed(() => {
