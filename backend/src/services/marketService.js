@@ -22,22 +22,42 @@ async function resolveTwelveSymbol({ symbol, apiKey }) {
   return match.symbol;
 }
 
-async function getCandles({ symbol, assetClass, interval }) {
+async function fetchBaseCandles({ symbol, assetClass, interval }) {
   let candles;
+  if (interval === "4h") {
+    throw new Error("interval 4h not supported");
+  }
+  const useAggregate = interval === "1day";
+  const fetchInterval = useAggregate ? "1h" : interval;
   const tdKey = process.env.TWELVEDATA_API_KEY;
   if (!tdKey) throw new Error("TWELVEDATA_API_KEY missing");
   if (assetClass === "stock") {
     const resolved = await resolveTwelveSymbol({ symbol, apiKey: tdKey });
-    candles = await fetchTimeSeries({ symbol: resolved, interval, apiKey: tdKey });
+    candles = await fetchTimeSeries({
+      symbol: resolved,
+      interval: fetchInterval,
+      apiKey: tdKey
+    });
   } else if (assetClass === "gold") {
-    candles = await fetchTimeSeries({ symbol: "XAU/USD", interval, apiKey: tdKey });
+    candles = await fetchTimeSeries({
+      symbol: "XAU/USD",
+      interval: fetchInterval,
+      apiKey: tdKey
+    });
   } else {
     throw new Error("unsupported assetClass");
   }
 
+  if (useAggregate) {
+    candles = aggregateCandles(candles, interval);
+  }
+
+  return candles;
+}
+
+function buildCandlesData({ symbol, assetClass, interval, candles }) {
   const indicators = calcIndicators(candles);
   const rules = evaluateIntervalRules(indicators);
-
   return {
     symbol,
     assetClass,
@@ -50,4 +70,16 @@ async function getCandles({ symbol, assetClass, interval }) {
   };
 }
 
-module.exports = { getCandles };
+async function getCandles({ symbol, assetClass, interval, baseCandles }) {
+  let candles;
+  const useAggregate = interval === "1day";
+  if (useAggregate && Array.isArray(baseCandles) && baseCandles.length > 0) {
+    candles = aggregateCandles(baseCandles, interval);
+  } else {
+    candles = await fetchBaseCandles({ symbol, assetClass, interval });
+  }
+
+  return buildCandlesData({ symbol, assetClass, interval, candles });
+}
+
+module.exports = { getCandles, fetchBaseCandles, buildCandlesData };

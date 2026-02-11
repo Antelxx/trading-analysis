@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="kline-root">
     <div class="kline-legend">
       <span class="legend-item ma7">MA7({{ maText.ma7 }})</span>
@@ -60,25 +60,27 @@ function toVolumeData(candles) {
 }
 
 function toLineData(candles, maValues) {
-  return candles.map((c, idx) => ({
-    time: Math.floor(new Date(c.t).getTime() / 1000),
-    value: maValues[idx]
-  })).filter((p) => p.value !== null);
+  return candles
+    .map((c, idx) => ({
+      time: Math.floor(new Date(c.t).getTime() / 1000),
+      value: maValues[idx]
+    }))
+    .filter((p) => p.value !== null);
 }
 
 function render() {
   if (!priceEl.value || !volumeEl.value) return;
   priceChart = createChart(priceEl.value, {
     layout: {
-      background: { color: "#ffffff" },
-      textColor: "#111827"
+      background: { color: "#131722" },
+      textColor: "#e5e7eb"
     },
     grid: {
-      vertLines: { color: "#eef2f7" },
-      horzLines: { color: "#eef2f7" }
+      vertLines: { color: "#1f2430" },
+      horzLines: { color: "#1f2430" }
     },
-    timeScale: { borderColor: "#e5e7eb" },
-    rightPriceScale: { borderColor: "#e5e7eb" }
+    timeScale: { borderColor: "#2a2f3a" },
+    rightPriceScale: { borderColor: "#2a2f3a" }
   });
 
   candleSeries = priceChart.addCandlestickSeries({
@@ -90,21 +92,36 @@ function render() {
     wickDownColor: "#16a34a"
   });
 
-  ma7Series = priceChart.addLineSeries({ color: "#2563eb", lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
-  ma25Series = priceChart.addLineSeries({ color: "#7c3aed", lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
-  ma60Series = priceChart.addLineSeries({ color: "#0ea5e9", lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+  ma7Series = priceChart.addLineSeries({
+    color: "#2563eb",
+    lineWidth: 1,
+    lastValueVisible: false,
+    priceLineVisible: false
+  });
+  ma25Series = priceChart.addLineSeries({
+    color: "#7c3aed",
+    lineWidth: 1,
+    lastValueVisible: false,
+    priceLineVisible: false
+  });
+  ma60Series = priceChart.addLineSeries({
+    color: "#0ea5e9",
+    lineWidth: 1,
+    lastValueVisible: false,
+    priceLineVisible: false
+  });
 
   volumeChart = createChart(volumeEl.value, {
     layout: {
-      background: { color: "#ffffff" },
-      textColor: "#111827"
+      background: { color: "#131722" },
+      textColor: "#e5e7eb"
     },
     grid: {
-      vertLines: { color: "#eef2f7" },
-      horzLines: { color: "#eef2f7" }
+      vertLines: { color: "#1f2430" },
+      horzLines: { color: "#1f2430" }
     },
-    timeScale: { borderColor: "#e5e7eb" },
-    rightPriceScale: { borderColor: "#e5e7eb" }
+    timeScale: { borderColor: "#2a2f3a" },
+    rightPriceScale: { borderColor: "#2a2f3a" }
   });
 
   volumeSeries = volumeChart.addHistogramSeries({
@@ -112,7 +129,6 @@ function render() {
     color: "rgba(34, 197, 94, 0.5)"
   });
 
-  // Sync time range between charts (TradingView-like behavior)
   priceChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
     if (syncing || !range) return;
     syncing = true;
@@ -226,8 +242,8 @@ watch(() => props.ma60, updateSeries);
   display: flex;
   gap: 10px;
   font-size: 12px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid #e5e7eb;
+  background: rgba(19, 23, 34, 0.9);
+  border: 1px solid #2a2f3a;
   border-radius: 8px;
   padding: 4px 8px;
 }
@@ -240,16 +256,18 @@ watch(() => props.ma60, updateSeries);
   display: flex;
   gap: 12px;
   font-size: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #e5e7eb;
+  background: rgba(19, 23, 34, 0.95);
+  border: 1px solid #2a2f3a;
   border-radius: 8px;
   padding: 4px 8px;
+  color: #e5e7eb;
 }
 
 .legend-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  color: #e5e7eb;
 }
 
 .legend-item::before {

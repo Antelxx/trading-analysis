@@ -13,9 +13,8 @@
       </div>
       <div class="ai-block">
         <div class="label">周期状态</div>
-        <div>1小时：{{ tfText("1h") }}</div>
-        <div>4小时：{{ tfText("4h") }}</div>
-        <div>1天：{{ tfText("1day") }}</div>
+      <div>1小时：{{ tfText("1h") }}</div>
+      <div>1天：{{ tfText("1day") }}</div>
       </div>
       <div class="ai-block">
         <div class="label">最大风险</div>

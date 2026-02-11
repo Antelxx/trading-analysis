@@ -1,6 +1,6 @@
 function aggregateCandles(candles, interval) {
-  if (interval === "1h" || interval === "1day") return candles;
-  const size = interval === "4h" ? 4 : 24;
+  if (interval !== "1day") return candles;
+  const size = 24;
   const out = [];
 
   for (let i = 0; i < candles.length; i += size) {

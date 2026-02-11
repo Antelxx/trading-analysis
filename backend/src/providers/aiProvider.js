@@ -10,13 +10,17 @@ function buildStubAnalysis({ rules }) {
     overall,
     forces: "多空力量在当前周期出现分化，需等待进一步确认。",
     timeframes: {
-      "1h": { state: "unclear", focus: "单周期信息有限，需结合其他周期。" },
-      "4h": { state: "unclear", focus: "单周期信息有限，需结合其他周期。" },
-      "1day": { state: "unclear", focus: "单周期信息有限，需结合其他周期。" }
+      "1h信号": "单周期信息有限，需结合其他周期。",
+      "1day趋势": "长期背景尚不明确，需等待结构确认。"
     },
     risk: "结构尚未形成一致信号，存在节奏错配风险。",
     rationale: "当前更适合观察与等待，以避免在结构未确认时做出激进行为。",
-    action_hint: rules.risk_level === "high" ? "wait" : "watch"
+    action_hint: rules.risk_level === "high" ? "wait" : "watch",
+    short_term_bias: "短期方向尚不清晰，建议以结构为主。",
+    long_term_trend: "长期趋势未形成共识，需等待均线结构确认。",
+    overall_view: "短期与长期信号一致性不足，当前以观察为主。",
+    execution_logic: "以等待与观察为主，避免在结构未确认时主动出击。",
+    risk_level: rules.risk_level === "high" ? "高" : rules.risk_level === "medium" ? "中" : "低"
   };
 }
 
@@ -45,12 +49,14 @@ function buildGeminiPrompt({ input }) {
 function buildSystemPrompt() {
   const mode = (process.env.AI_MODE || "public").toLowerCase();
   const base =
-    "你是一个基于‘多周期均线(MA)与量价关系’的专业分析助手。请严格执行以下逻辑：\n" +
-    "1. 核心逻辑：以 4h 级别定趋势，1h 级别找信号。若价格在 MA60 下方，所有向上交叉均视为‘反弹’而非‘反转’。\n" +
+    "你是一位资深的量化交易员，基于‘多周期均线(MA)与量价关系’进行结构解读。请严格执行以下逻辑：\n" +
+    "1. 核心逻辑：以日线作为月度趋势背景，1h 级别刻画日内波动节奏。若价格在日线 MA60 下方，所有向上交叉均视为‘反弹’而非‘反转’。\n" +
     "2. 验证标准：观察价格突破均线时成交量是否同步放大，若缩量则在 risk 中提示‘诱多风险’。\n" +
-    "3. 字段要求：只输出 JSON，严禁预测未来涨跌，严禁给出买卖建议。必须包含字段：overall, forces, timeframes, risk, rationale, action_hint。\n" +
-    "4. 约束：action_hint 只能是 wait/watch/cautious。\n" +
-    "5. 语言：输出内容必须使用中文，不允许出现英文单词（MA7/MA25/MA60 等专业缩写除外）。\n";
+    "3. 字段要求：只输出 JSON，严禁预测未来涨跌，严禁给出买卖建议。必须包含字段：long_term_trend, short_term_bias, overall_view, execution_logic, risk_level, overall, forces, timeframes, risk, rationale, action_hint。\n" +
+    "4. 约束：risk_level 只能是 低/中/高；action_hint 只能是 wait/watch/cautious。\n" +
+    "5. timeframes 仅允许包含 1h 与 1day 的描述，禁止出现 4h 或其他周期。\n" +
+    "6. 禁止暴露内部字段名或规则键（如 volume_confirm、price_distance 等），必须改写为自然语言。\n" +
+    "7. 语言：输出内容必须使用中文，不允许出现英文单词（MA7/MA25/MA60、1H/1D 等专业缩写除外）。\n";
   if (mode === "personal") {
     return (
       base +

@@ -31,21 +31,16 @@ router.get("/ai", async (req, res) => {
   if (!symbol) return res.status(400).json({ error: "symbol required" });
 
   try {
-    const data = await getCandles({ symbol, assetClass: asset, interval });
-    const rules = data.rules || buildRulesResponse({ indicators: data.indicators, interval }).rules;
-
     const ai = await analyzeMarket({
-      symbol: data.symbol,
-      assetClass: data.assetClass,
-      interval: data.interval,
-      indicators: data.indicators,
-      rules
+      symbol,
+      assetClass: asset,
+      interval
     });
 
     res.json({
-      symbol: data.symbol,
-      assetClass: data.assetClass,
-      interval: data.interval,
+      symbol,
+      assetClass: asset,
+      interval,
       ...ai
     });
   } catch (err) {
