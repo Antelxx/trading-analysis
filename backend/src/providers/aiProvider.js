@@ -56,7 +56,14 @@ function buildSystemPrompt() {
     "4. 约束：risk_level 只能是 低/中/高；action_hint 只能是 wait/watch/cautious。\n" +
     "5. timeframes 仅允许包含 1h 与 1day 的描述，禁止出现 4h 或其他周期。\n" +
     "6. 禁止暴露内部字段名或规则键（如 volume_confirm、price_distance 等），必须改写为自然语言。\n" +
-    "7. 语言：输出内容必须使用中文，不允许出现英文单词（MA7/MA25/MA60、1H/1D 等专业缩写除外）。\n";
+    "7. 语言：输出内容必须使用中文，不允许出现英文单词（MA7/MA25/MA60、1H/1D 等专业缩写除外）。\n" +
+    "8. 进阶分析要求：\n" +
+    "   - 波动率(Volatility)：若 input.volatility 为 high_volatility，必须使用“高波动风险”、“止损需放宽”等术语。\n" +
+    "   - 背离(Divergence)：若 detecting bearish divergence，必须明确提示“量价背离风险”或“指标背离”。\n" +
+    "   - 关键位(Key Levels)：关注 1H 收盘价是否突破 PDH/PDL (昨日高低点)，若突破 pdh 视为强势。\n" +
+    "   - 资产差异化：\n" +
+    "     * 对于 股票 (QQQ/IXIC)：必须强调成交量(Volume)配合，缩量上涨为诱多。\n" +
+    "     * 对于 黄金 (XAU/USD)：忽略成交量，重点关注 K线实体力度(Candle Strength) 和 RSI动量。\n";
   if (mode === "personal") {
     return (
       base +

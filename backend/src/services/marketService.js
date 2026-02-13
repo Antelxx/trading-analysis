@@ -55,8 +55,10 @@ async function fetchBaseCandles({ symbol, assetClass, interval }) {
   return candles;
 }
 
-function buildCandlesData({ symbol, assetClass, interval, candles }) {
-  const indicators = calcIndicators(candles);
+function buildCandlesData({ symbol, assetClass, interval, candles, dailyCandles = [] }) {
+  const indicators = calcIndicators(candles, dailyCandles);
+  // Attach assetClass to indicators so rules can see it
+  indicators.assetClass = assetClass;
   const rules = evaluateIntervalRules(indicators);
   return {
     symbol,
@@ -79,7 +81,19 @@ async function getCandles({ symbol, assetClass, interval, baseCandles }) {
     candles = await fetchBaseCandles({ symbol, assetClass, interval });
   }
 
-  return buildCandlesData({ symbol, assetClass, interval, candles });
+  let dailyCandles = [];
+  // For intraday intervals, we need daily candles for PDH/PDL
+  if (!useAggregate && interval === "1h") {
+    // We can reuse fetchBaseCandles logic or aggregate if we had 1h data? 
+    // Re-fetching 1day data is safest.
+    try {
+      dailyCandles = await fetchBaseCandles({ symbol, assetClass, interval: "1day" });
+    } catch (e) {
+      console.error("Failed to fetch daily candles for PDH/PDL:", e.message);
+    }
+  }
+
+  return buildCandlesData({ symbol, assetClass, interval, candles, dailyCandles });
 }
 
 module.exports = { getCandles, fetchBaseCandles, buildCandlesData };

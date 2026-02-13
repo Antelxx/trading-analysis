@@ -21,25 +21,50 @@
     <main class="main">
       <section class="main-grid">
         <section class="chart-wrap">
-          <div class="chart-area">
-            <div v-if="aiAnalysis" class="chart-cycle">当前周期：1小时</div>
-            <KlineChart
-              v-if="(kline?.candles || []).length > 0"
-              :candles="kline?.candles || []"
-              :ma7="indicators?.ma7 || []"
-              :ma25="indicators?.ma25 || []"
-              :ma60="indicators?.ma60 || []"
-              :interval="interval"
-            />
-            <div v-else class="empty">暂无数据，请检查行情接口密钥或选择可用市场。</div>
+          <div class="chart-grid">
+            <!-- 左侧 长期趋势 (1Day) -->
+            <div class="chart-area day-chart">
+               <div class="chart-header">
+                  <span class="chart-tag">长期趋势 (1Day)</span>
+               </div>
+               <KlineChart
+                  v-if="(kline1d?.candles || []).length > 0"
+                  :candles="kline1d?.candles || []"
+                  :ma7="indicators1d?.ma7 || []"
+                  :ma25="indicators1d?.ma25 || []"
+                  :ma60="indicators1d?.ma60 || []"
+                  interval="1day"
+                />
+               <div v-else class="empty">暂无数据</div>
+            </div>
+
+            <!-- 右侧 日内结构 (1Hour) -->
+            <div class="chart-area hour-chart">
+               <div class="chart-header">
+                  <span class="chart-tag">日内结构 (1Hour)</span>
+                  <span class="chart-tag key-level" v-if="indicators?.pdh">PDH: {{ indicators.pdh }}</span>
+                  <span class="chart-tag key-level" v-if="indicators?.pdl">PDL: {{ indicators.pdl }}</span>
+               </div>
+               <KlineChart
+                  v-if="(kline?.candles || []).length > 0"
+                  :candles="kline?.candles || []"
+                  :ma7="indicators?.ma7 || []"
+                  :ma25="indicators?.ma25 || []"
+                  :ma60="indicators?.ma60 || []"
+                  :pdh="indicators?.pdh"
+                  :pdl="indicators?.pdl"
+                  interval="1h"
+                />
+               <div v-else class="empty">暂无数据</div>
+            </div>
           </div>
-          <div class="footnote">数据仅用于结构分析，不构成投资建议。</div>
+          <div class="footnote">左侧日线定方向，右侧小时线找切入点。数据仅用于结构分析，不构成投资建议。</div>
         </section>
 
         <aside class="summary">
           <div :class="['sidebar-card', loadingClass]">
             <div class="summary-title">长短期趋势</div>
-            <div class="deep-dive">
+            <div class="deep-dive" style="min-height: 120px; display: flex; flex-direction: column; justify-content: center;">
               <div class="deep-item">
                 <span class="status-dot inline" :class="shortTermStatusClass"></span>
                 <span :class="['deep-text', placeholderClass(shortTermBiasText)]">短期偏向：{{ shortTermBiasText }}</span>
@@ -103,8 +128,10 @@ import { fetchAi } from "./api/analysis";
 const marketKey = ref("nasdaq");
 const interval = ref("1h");
 
-const kline = ref(null);
-const indicators = ref(null);
+const kline = ref(null); // 1H
+const indicators = ref(null); // 1H
+const kline1d = ref(null); // 1D
+const indicators1d = ref(null); // 1D
 const aiAnalysis = ref(null);
 const loading = ref(false);
 const toast = ref("");
@@ -128,14 +155,20 @@ async function refresh() {
   const { symbol, asset } = currentMarket.value;
   try {
     loading.value = true;
-    const [klineRes, indicatorRes, aiRes] = await Promise.all([
-      fetchKline({ symbol, asset, interval: interval.value }),
-      fetchIndicators({ symbol, asset, interval: interval.value }),
-      fetchAi({ symbol, asset, interval: interval.value })
+    const [klineRes, indicatorRes, kline1dRes, indicator1dRes, aiRes] = await Promise.all([
+      fetchKline({ symbol, asset, interval: "1h" }),
+      fetchIndicators({ symbol, asset, interval: "1h" }),
+      fetchKline({ symbol, asset, interval: "1day" }),
+      fetchIndicators({ symbol, asset, interval: "1day" }),
+      fetchAi({ symbol, asset, interval: "1h" }) // AI internals handle 1D fetching separately, or we could optimize
     ]);
     // Update UI only after AI returns to keep chart + analysis in sync
     kline.value = klineRes;
     indicators.value = indicatorRes.indicators;
+    
+    kline1d.value = kline1dRes;
+    indicators1d.value = indicator1dRes.indicators;
+    
     aiAnalysis.value = aiRes;
     toast.value = "分析已生成";
     setTimeout(() => {
@@ -290,3 +323,57 @@ function placeholderClass(text) {
   return "";
 }
 </script>
+
+<style>
+/* Global Layout Fixes */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  height: 600px; /* Fixed height for split screen */
+  width: 100%;
+}
+
+.chart-area {
+  background: #1e222d;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+}
+
+.chart-header {
+  padding: 8px 12px;
+  background: #2a2e39;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #b2b5be;
+}
+
+.chart-tag {
+  font-weight: 600;
+  background: #363a45;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.chart-tag.key-level {
+  background: #7c3aed;
+  color: #fff;
+  margin-left: 8px;
+}
+
+@media (max-width: 1200px) {
+  .chart-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .chart-area {
+    height: 400px;
+  }
+}
+</style>

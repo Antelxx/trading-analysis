@@ -37,14 +37,19 @@ function buildAiInput({
         ma_structure: shortTerm.rules?.ma_structure,
         price_distance: shortTerm.rules?.price_distance,
         risk_level: shortTerm.rules?.risk_level,
-        action_hint: shortTerm.rules?.action_hint
+        action_hint: shortTerm.rules?.action_hint,
+        volatility: shortTerm.rules?.volatility,
+        volume_confirm: shortTerm.rules?.volume_confirm,
+        divergence: shortTerm.rules?.divergence,
+        key_levels: shortTerm.rules?.key_levels
       },
       long_term: {
         trend: longTerm.rules?.trend,
         ma_structure: longTerm.rules?.ma_structure,
         price_distance: longTerm.rules?.price_distance,
         risk_level: longTerm.rules?.risk_level,
-        action_hint: longTerm.rules?.action_hint
+        action_hint: longTerm.rules?.action_hint,
+        volatility: longTerm.rules?.volatility
       }
     },
     samples: {
@@ -69,7 +74,8 @@ async function analyzeMarket({ symbol, assetClass, interval }) {
         symbol,
         assetClass,
         interval: SHORT_TERM_INTERVAL,
-        candles: baseCandles
+        candles: baseCandles,
+        dailyCandles: longCandles
       })
     ),
     Promise.resolve(

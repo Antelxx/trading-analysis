@@ -25,7 +25,9 @@ const props = defineProps({
   candles: { type: Array, default: () => [] },
   ma7: { type: Array, default: () => [] },
   ma25: { type: Array, default: () => [] },
-  ma60: { type: Array, default: () => [] }
+  ma60: { type: Array, default: () => [] },
+  pdh: { type: Number, default: null },
+  pdl: { type: Number, default: null }
 });
 
 const priceEl = ref(null);
@@ -42,13 +44,20 @@ const maText = ref({ ma7: "-", ma25: "-", ma60: "-" });
 const info = ref({ time: "-", open: "-", high: "-", low: "-", close: "-" });
 
 function toSeriesData(candles) {
-  return candles.map((c) => ({
-    time: Math.floor(new Date(c.t).getTime() / 1000),
-    open: c.o,
-    high: c.h,
-    low: c.l,
-    close: c.c
-  }));
+  return candles.map((c) => {
+    // Fix for 1D chart: TradingView expects business days or timestamps.
+    // If backend returns ISO string, ensure we parse it correctly.
+    // For 1D, we should align to UTC midnight to avoid "1 week gap" visual issues if data is sparse or tz issue.
+    // TwelveData returns YYYY-MM-DD for 1day.
+    const time = new Date(c.t).getTime() / 1000; 
+    return {
+      time: time,
+      open: c.o,
+      high: c.h,
+      low: c.l,
+      close: c.c
+    };
+  });
 }
 
 function toVolumeData(candles) {
@@ -146,12 +155,19 @@ function render() {
     const bar = param?.seriesData?.get(candleSeries);
     if (!bar || !param.time) return;
     const time = new Date(param.time * 1000);
-    const yyyy = time.getFullYear();
-    const mm = String(time.getMonth() + 1).padStart(2, "0");
-    const dd = String(time.getDate()).padStart(2, "0");
-    const hh = String(time.getHours()).padStart(2, "0");
+    const dateObj = new Date(param.time * 1000);
+    // Format to Beijing Time (UTC+8)
+    const timeStr = new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hour12: false
+    }).format(dateObj);
+
     info.value = {
-      time: `${yyyy}/${mm}/${dd}/${hh}`,
+      time: timeStr,
       open: bar.open?.toFixed(2) ?? "-",
       high: bar.high?.toFixed(2) ?? "-",
       low: bar.low?.toFixed(2) ?? "-",
@@ -187,18 +203,64 @@ function updateSeries() {
 
   const lastCandle = props.candles[props.candles.length - 1];
   if (lastCandle) {
-    const time = new Date(lastCandle.t);
-    const yyyy = time.getFullYear();
-    const mm = String(time.getMonth() + 1).padStart(2, "0");
-    const dd = String(time.getDate()).padStart(2, "0");
-    const hh = String(time.getHours()).padStart(2, "0");
+    const dateObj = new Date(lastCandle.t);
+    const timeStr = new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hour12: false
+    }).format(dateObj);
+
     info.value = {
-      time: `${yyyy}/${mm}/${dd}/${hh}`,
+      time: timeStr,
       open: Number(lastCandle.o).toFixed(2),
       high: Number(lastCandle.h).toFixed(2),
       low: Number(lastCandle.l).toFixed(2),
       close: Number(lastCandle.c).toFixed(2)
     };
+
+  }
+}
+
+let pdhLine = null;
+let pdlLine = null;
+
+function updateKeyLevels() {
+  if (!candleSeries) return;
+  
+  // Clean up
+  if (pdhLine) {
+     candleSeries.removePriceLine(pdhLine);
+     pdhLine = null;
+  }
+  if (pdlLine) {
+     candleSeries.removePriceLine(pdlLine);
+     pdlLine = null;
+  }
+  
+  // Draw
+  if (props.pdh) {
+    pdhLine = candleSeries.createPriceLine({
+      price: props.pdh,
+      color: '#fbbf24', // Amber-400
+      lineWidth: 2,
+      lineStyle: 2, // Dashed
+      axisLabelVisible: true,
+      title: 'PDH',
+    });
+  }
+  
+  if (props.pdl) {
+    pdlLine = candleSeries.createPriceLine({
+      price: props.pdl,
+      color: '#f87171', // Red-400
+      lineWidth: 2,
+      lineStyle: 2, // Dashed
+      axisLabelVisible: true,
+      title: 'PDL',
+    });
   }
 }
 
@@ -216,6 +278,8 @@ watch(() => props.candles, updateSeries);
 watch(() => props.ma7, updateSeries);
 watch(() => props.ma25, updateSeries);
 watch(() => props.ma60, updateSeries);
+watch(() => props.pdh, updateSeries);
+watch(() => props.pdl, updateSeries);
 </script>
 
 <style scoped>
