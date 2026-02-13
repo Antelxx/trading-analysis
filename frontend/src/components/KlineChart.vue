@@ -27,7 +27,8 @@ const props = defineProps({
   ma25: { type: Array, default: () => [] },
   ma60: { type: Array, default: () => [] },
   pdh: { type: Number, default: null },
-  pdl: { type: Number, default: null }
+  pdl: { type: Number, default: null },
+  interval: { type: String, default: "1h" }
 });
 
 const priceEl = ref(null);
@@ -157,14 +158,17 @@ function render() {
     const time = new Date(param.time * 1000);
     const dateObj = new Date(param.time * 1000);
     // Format to Beijing Time (UTC+8)
-    const timeStr = new Intl.DateTimeFormat("zh-CN", {
-      timeZone: "Asia/Shanghai",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      hour12: false
-    }).format(dateObj);
+    const options = {
+       timeZone: "Asia/Shanghai",
+       year: "numeric",
+       month: "2-digit",
+       day: "2-digit",
+       hour12: false
+    };
+    if (props.interval !== "1day") {
+       options.hour = "2-digit";
+    }
+    const timeStr = new Intl.DateTimeFormat("zh-CN", options).format(dateObj);
 
     info.value = {
       time: timeStr,
@@ -183,8 +187,24 @@ function updateSeries() {
   ma7Series.setData(toLineData(props.candles, props.ma7));
   ma25Series.setData(toLineData(props.candles, props.ma25));
   ma60Series.setData(toLineData(props.candles, props.ma60));
-  priceChart.timeScale().fitContent();
-  volumeChart.timeScale().fitContent();
+  ma60Series.setData(toLineData(props.candles, props.ma60));
+  
+  // Set Visible Range based on Interval
+  // For 1h: Show last ~3 days (approx 72 hours). 
+  // For 1day: Show last ~30-60 days.
+  const total = props.candles.length;
+  if (total > 0) {
+     let visibleBars = 50; 
+     if (props.interval === "1h") visibleBars = 60; // ~2.5 days
+     if (props.interval === "1day") visibleBars = 60; // 2 months
+     
+     const from = Math.max(0, total - visibleBars);
+     const to = total; // can be effectively infinite to lock right
+     
+     priceChart.timeScale().setVisibleLogicalRange({ from, to });
+  } else {
+     priceChart.timeScale().fitContent();
+  }
 
   const last = (arr) => {
     for (let i = arr.length - 1; i >= 0; i -= 1) {

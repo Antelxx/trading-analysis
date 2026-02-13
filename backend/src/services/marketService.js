@@ -27,29 +27,29 @@ async function fetchBaseCandles({ symbol, assetClass, interval }) {
   if (interval === "4h") {
     throw new Error("interval 4h not supported");
   }
-  const useAggregate = interval === "1day";
-  const fetchInterval = useAggregate ? "1h" : interval;
+
+  // Optimize: For 1day, fetch directly if possible.
+  // TwelveData supports 1day. No need to aggregate from 1h unless data is missing.
+  // Let's trust the API for 1day data to get longer history (e.g. 300 days).
+
   const tdKey = process.env.TWELVEDATA_API_KEY;
   if (!tdKey) throw new Error("TWELVEDATA_API_KEY missing");
+
   if (assetClass === "stock") {
     const resolved = await resolveTwelveSymbol({ symbol, apiKey: tdKey });
     candles = await fetchTimeSeries({
       symbol: resolved,
-      interval: fetchInterval,
+      interval: interval,
       apiKey: tdKey
     });
   } else if (assetClass === "gold") {
     candles = await fetchTimeSeries({
       symbol: "XAU/USD",
-      interval: fetchInterval,
+      interval: interval,
       apiKey: tdKey
     });
   } else {
     throw new Error("unsupported assetClass");
-  }
-
-  if (useAggregate) {
-    candles = aggregateCandles(candles, interval);
   }
 
   return candles;
@@ -76,6 +76,8 @@ async function getCandles({ symbol, assetClass, interval, baseCandles }) {
   let candles;
   const useAggregate = interval === "1day";
   if (useAggregate && Array.isArray(baseCandles) && baseCandles.length > 0) {
+    // If we ever invoke this with baseCandles pre-fetched, handle agg if needed.
+    // But currently we fetch fresh.
     candles = aggregateCandles(baseCandles, interval);
   } else {
     candles = await fetchBaseCandles({ symbol, assetClass, interval });
